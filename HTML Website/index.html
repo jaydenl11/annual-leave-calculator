@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Annual Leave Calculator</title>
+    <style>
+        .result-row {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 4px;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 {
+            text-align: center;
+        }
+        label {
+            display: block;
+            margin: 15px 0 8px;
+            font-size: 1.1rem;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 1rem;
+            background-color: #e0e0e0;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #bdbdbd;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            font-size: 1.1rem;
+        }
+        .result h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .result p {
+            margin: 8px 0;
+        }
+        .result hr {
+            border: 0;
+            height: 1px;
+            background-color: #ddd;
+            margin: 10px 0;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div style="max-width: 800px; margin: 0 auto;">
+        <h1 style="font-size: 2.5rem; margin-bottom: 30px;">Annual Leave Calculator</h1>
+        
+        <div id="step1">
+            <label for="terminationDate">Enter Employee's Termination Date:</label>
+            <input type="date" id="terminationDate" required>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="calculateDaysWorked()" style="flex: 1;">Calculate Days Worked</button>
+            </div>
+        </div>
+
+        <div id="step3" style="display: none;">
+            <div class="result-row">
+                <p>Total annual leave entitlement (E): <span id="entitlementOutput"></span> days</p>
+            </div>
+            <label for="annualLeaveTaken">Total annual leave taken (T) (days):</label>
+            <input type="number" id="annualLeaveTaken" placeholder="Enter total leave taken" step="0.5" min="0" required>
+
+            <label for="carryForward">Total carry forward from previous year (C) (days):</label>
+            <input type="number" id="carryForward" placeholder="Enter carry forward days" step="0.5" min="0" required>
+            
+            <label>Did you use any carried-over leave before 1 April 2025?</label>
+            <div style="display: flex; gap: 10px; margin: 5px 0 15px;">
+                <button id="usedCarryYesBtn" type="button" style="flex: 1; background-color: #4CAF50; color: white;">Yes</button>
+                <button id="usedCarryNoBtn" type="button" style="flex: 1; background-color: #f44336; color: white;">No</button>
+            </div>
+            <div id="carriedUsedDiv" style="display: none;">
+                <label for="daysUsedBeforeApr">Days used before 1 April 2025:</label>
+                <input type="number" id="daysUsedBeforeApr" placeholder="Enter days used" step="0.5" min="0">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="setPreviousStep('step1')" style="flex: 1;">Back</button>
+                <button onclick="calculateOutstandingLeave()" style="flex: 1;">Calculate Outstanding Leave</button>
+            </div>
+        </div>
+
+        <div class="result" id="result" style="display: none;">
+            <h3>Outstanding Annual Leave Calculation</h3>
+            <hr>
+            <p><strong>Entitlement (E):</strong> <span id="entitlementResult"></span> days</p>
+            <p><strong>Minus Taken (T):</strong> <span id="takenResult"></span> days</p>
+            <p><strong>Plus Carry Forward (C):</strong> <span id="carryForwardResult"></span> days</p>
+            <p><strong>Minus Used Before 1 Apr:</strong> <span id="usedBeforeResult"></span> days</p>
+            <hr>
+            <p><strong>Total Outstanding:</strong> <span id="outstandingResult"></span> days</p>
+            <div class="button-group">
+                <button onclick="setPreviousStep('step3')" style="flex: 1;">Back</button>
+                <button onclick="resetToStep1()" style="flex: 1;">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let annualLeaveEntitlement = 0;
+        
+        function setPreviousStep(prevStep) {
+            document.getElementById('step1').style.display = 'none';
+            document.getElementById('step3').style.display = 'none';
+            document.getElementById('result').style.display = 'none';
+            document.getElementById(prevStep).style.display = 'block';
+        }
+
+        let usedCarryBeforeApr = false;
+        
+        document.getElementById('usedCarryYesBtn').addEventListener('click', function() {
+            usedCarryBeforeApr = true;
+            document.getElementById('carriedUsedDiv').style.display = 'block';
+            this.style.backgroundColor = '#45a049';
+            document.getElementById('usedCarryNoBtn').style.backgroundColor = '#f44336';
+        });
+        
+        document.getElementById('usedCarryNoBtn').addEventListener('click', function() {
+            usedCarryBeforeApr = false;
+            document.getElementById('carriedUsedDiv').style.display = 'none';
+            document.getElementById('daysUsedBeforeApr').value = '';
+            this.style.backgroundColor = '#d32f2f';
+            document.getElementById('usedCarryYesBtn').style.backgroundColor = '#4CAF50';
+        });
+
+        function calculateDaysWorked() {
+            const terminationDate = new Date(document.getElementById('terminationDate').value);
+            const currentDate = new Date('2025-07-02'); // Using current date as per your context
+            const startOfYear = new Date(currentDate.getFullYear(), 0, 1);
+
+            let daysWorked = Math.floor((terminationDate - startOfYear) / (1000 * 60 * 60 * 24)) + 1;
+
+            if (daysWorked < 0) {
+                alert("Termination date must be within the current year.");
+                return;
+            }
+
+            annualLeaveEntitlement = (20 * daysWorked) / 365;
+            document.getElementById('entitlementOutput').innerText = 
+                `${annualLeaveEntitlement.toFixed(2)} days (20 × ${daysWorked} ÷ 365 = ${annualLeaveEntitlement.toFixed(2)})`;
+
+            setPreviousStep('step3');
+        }
+
+        function calculateOutstandingLeave() {
+            const annualLeaveTaken = parseFloat(document.getElementById('annualLeaveTaken').value);
+            const carryForward = parseFloat(document.getElementById('carryForward').value);
+            let daysUsedBeforeApr = 0;
+            if (usedCarryBeforeApr) {
+                daysUsedBeforeApr = parseFloat(document.getElementById('daysUsedBeforeApr').value) || 0;
+            }
+            const outstandingLeave = annualLeaveEntitlement - annualLeaveTaken + (carryForward - daysUsedBeforeApr);
+
+            document.getElementById('entitlementResult').textContent = annualLeaveEntitlement.toFixed(2);
+            document.getElementById('takenResult').textContent = annualLeaveTaken;
+            document.getElementById('carryForwardResult').textContent = carryForward;
+            document.getElementById('usedBeforeResult').textContent = usedCarryBeforeApr ? daysUsedBeforeApr : 0;
+            document.getElementById('outstandingResult').textContent = outstandingLeave.toFixed(2);
+
+            setPreviousStep('result');
+        }
+
+        function resetToStep1() {
+            document.getElementById('terminationDate').value = '';
+            document.getElementById('annualLeaveTaken').value = '';
+            document.getElementById('carryForward').value = '';
+            document.getElementById('daysUsedBeforeApr').value = '';
+            usedCarryBeforeApr = false;
+            document.getElementById('carriedUsedDiv').style.display = 'none';
+            document.getElementById('usedCarryYesBtn').style.backgroundColor = '#4CAF50';
+            document.getElementById('usedCarryNoBtn').style.backgroundColor = '#f44336';
+            annualLeaveEntitlement = 0;
+            document.getElementById('entitlementOutput').innerText = '';
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('step1').style.display = 'block';
+        }
+    </script>
+
+</body>
+</html>
